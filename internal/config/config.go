@@ -11,7 +11,7 @@ const (
 	Password = "password"
 	Host     = "localhost"
 	Port     = "3306"
-	Database = "discord_bot_go"
+	Database = "discord_bot"
 )
 
 var DatabaseURL = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", User, Password, Host, Port, Database)

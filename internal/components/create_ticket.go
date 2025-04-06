@@ -23,30 +23,33 @@ func mapTicketTypesToSelectMenuOptions(ticketTypes []struct {
 }
 
 func init() {
-	RegisterComponent("create_ticket", func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// Enviar uma mensagem efêmera com um SelectMenu para escolher o tipo de ticket
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Selecione o tipo de ticket:",
-				Flags:   discordgo.MessageFlagsEphemeral,
-				Components: []discordgo.MessageComponent{
-					discordgo.ActionsRow{
-						Components: []discordgo.MessageComponent{
-							discordgo.SelectMenu{
-								CustomID:    "ticket_type_" + i.Member.User.ID,
-								Placeholder: "Escolha o tipo de ticket",
-								Options:     mapTicketTypesToSelectMenuOptions(config.TicketTypes),
+	RegisterComponent(Component{
+		CustomID: "create_ticket",
+		Handler: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			// Enviar uma mensagem efêmera com um SelectMenu para escolher o tipo de ticket
+			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Selecione o tipo de ticket:",
+					Flags:   discordgo.MessageFlagsEphemeral,
+					Components: []discordgo.MessageComponent{
+						discordgo.ActionsRow{
+							Components: []discordgo.MessageComponent{
+								discordgo.SelectMenu{
+									CustomID:    "ticket_type_" + i.Member.User.ID,
+									Placeholder: "Escolha o tipo de ticket",
+									Options:     mapTicketTypesToSelectMenuOptions(config.TicketTypes),
+								},
 							},
 						},
 					},
 				},
-			},
-		})
-		if err != nil {
-			s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
-				Content: "Erro ao enviar o menu de seleção. Tente novamente!",
 			})
-		}
+			if err != nil {
+				s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+					Content: "Erro ao enviar o menu de seleção. Tente novamente!",
+				})
+			}
+		},
 	})
 }

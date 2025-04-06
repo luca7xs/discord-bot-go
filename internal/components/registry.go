@@ -19,21 +19,11 @@ type Component struct {
 var ComponentRegistry = make(map[string]Component)
 
 // RegisterComponent adiciona um componente ao registro
-func RegisterComponent(customID string, handler ComponentHandler) error {
-	if _, exists := ComponentRegistry[customID]; exists {
-		return errors.New("CustomID já registrado: " + customID)
+func RegisterComponent(component Component) error {
+	// Verifica se o componente já existe
+	if _, exists := ComponentRegistry[component.CustomID]; exists {
+		return errors.New("CustomID já registrado: " + component.CustomID)
 	}
-	ComponentRegistry[customID] = Component{
-		CustomID: customID,
-		Handler:  handler,
-	}
+	ComponentRegistry[component.CustomID] = component
 	return nil
-}
-
-// GetComponentHandler retorna o handler de um componente pelo CustomID
-func GetComponentHandler(customID string) (ComponentHandler, bool) {
-	if component, exists := ComponentRegistry[customID]; exists {
-		return component.Handler, true
-	}
-	return nil, false
 }
