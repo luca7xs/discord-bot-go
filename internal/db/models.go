@@ -8,6 +8,7 @@ import (
 type Ticket struct {
 	ID        uint   `gorm:"primaryKey"`
 	UserID    string `gorm:"not null;index"`
+	UserName  string `gorm:"not null"`
 	ChannelID string `gorm:"not null;index"`
 	Type      string `gorm:"not null"`
 	Reason    string `gorm:"not null"`
@@ -22,6 +23,7 @@ type TicketMessage struct {
 	ID        uint   `gorm:"primaryKey"`
 	TicketID  uint   `gorm:"not null;index"` // Indexado para buscas por ticket
 	UserID    string `gorm:"not null"`
+	UserName  string `gorm:"not null"`
 	Content   string `gorm:"not null"`
 	Timestamp time.Time
 	CreatedAt time.Time

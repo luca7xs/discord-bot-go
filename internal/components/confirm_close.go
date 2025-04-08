@@ -118,6 +118,10 @@ func handleTicketClosure(s *discordgo.Session, channelID string, msg *discordgo.
 
 	// Registrar handler temporário para o botão de cancelamento
 	cancelHandler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.Type != discordgo.InteractionMessageComponent {
+			return // ignora interações que não são de botão
+		}
+
 		if i.MessageComponentData().CustomID == "cancel_close_"+channelID {
 			cancelChan <- true
 			utils.RespondEphemeralEmbed(s, i, utils.ResponseOptions{
@@ -131,6 +135,7 @@ func handleTicketClosure(s *discordgo.Session, channelID string, msg *discordgo.
 			}
 		}
 	}
+
 	s.AddHandlerOnce(cancelHandler)
 
 	// Aguardar 20 segundos ou cancelamento

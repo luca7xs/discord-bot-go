@@ -15,13 +15,14 @@ const (
 )
 
 // CreateTicket cria um novo ticket no banco de dados
-func CreateTicket(userID, channelID, ticketType, reason string) error {
-	if userID == "" || channelID == "" || ticketType == "" {
-		return fmt.Errorf("userID, channelID e ticketType não podem ser vazios")
+func CreateTicket(userID, userName, channelID, ticketType, reason string) error {
+	if userID == "" || userName == "" || channelID == "" || ticketType == "" {
+		return fmt.Errorf("userID, userName, channelID e ticketType não podem ser vazios")
 	}
 
 	ticket := Ticket{
 		UserID:    userID,
+		UserName:  userName,
 		ChannelID: channelID,
 		Type:      ticketType,
 		Reason:    reason,
@@ -71,6 +72,42 @@ func FindTicketByChannelID(channelID string) (*Ticket, error) {
 	return findTicket("channel_id = ?", channelID)
 }
 
+func FindClosedTicketsWithLogs() ([]Ticket, error) {
+	var tickets []Ticket
+	err := DB.
+		Model(&Ticket{}).
+		Joins("JOIN ticket_messages ON ticket_messages.ticket_id = tickets.id").
+		Where("tickets.status = ?", TicketStatusClosed).
+		Group("tickets.id").
+		Find(&tickets).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("erro ao buscar tickets fechados com logs: %w", err)
+	}
+	return tickets, nil
+}
+
+func FindTicketByID(id string) (*Ticket, error) {
+	var ticket Ticket
+	err := DB.First(&ticket, id).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ticket, nil
+}
+
+func FindMessagesByTicketID(ticketID uint) ([]TicketMessage, error) {
+	var messages []TicketMessage
+	err := DB.Where("ticket_id = ?", ticketID).Order("timestamp asc").Find(&messages).Error
+	if err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
 // CloseTicket marca um ticket como fechado e salva as mensagens no banco de dados, se fornecidas
 func CloseTicket(channelID string, messages []*discordgo.Message) error {
 	if channelID == "" {
@@ -101,6 +138,7 @@ func CloseTicket(channelID string, messages []*discordgo.Message) error {
 			ticketMsg := TicketMessage{
 				TicketID:  ticket.ID,
 				UserID:    msg.Author.ID,
+				UserName:  msg.Author.Username,
 				Content:   msg.Content,
 				Timestamp: msg.Timestamp,
 				CreatedAt: time.Now(),

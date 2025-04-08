@@ -14,8 +14,10 @@ func init() {
 	RegisterComponent(Component{
 		CustomID: "ticket_reason_",
 		Handler: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			// Pegar o tipo de ticket selecionado
+			userName := i.Member.User.Username
 			userID := i.Member.User.ID
+
+			// Pegar o tipo de ticket selecionado
 			guildID := i.GuildID
 
 			reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
@@ -53,7 +55,7 @@ func init() {
 			}
 
 			// Criar o ticket no banco de dados
-			err = db.CreateTicket(userID, channel.ID, ticketType, reason)
+			err = db.CreateTicket(userID, userName, channel.ID, ticketType, reason)
 			if err != nil {
 				s.ChannelDelete(channel.ID)
 				utils.RespondEphemeralEmbed(s, i, utils.ResponseOptions{

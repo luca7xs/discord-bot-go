@@ -11,8 +11,9 @@ type CommandHandler func(s *discordgo.Session, i *discordgo.InteractionCreate)
 
 // Command define a interface para todos os comandos
 type Command struct {
-	Definition *discordgo.ApplicationCommand
-	Handler    CommandHandler
+	Definition          *discordgo.ApplicationCommand
+	Handler             CommandHandler
+	AutocompleteHandler func(s *discordgo.Session, i *discordgo.InteractionCreate) // <- Suporte adicionado
 }
 
 // CommandRegistry armazena todos os comandos registrados

@@ -66,7 +66,7 @@ func (b *Bot) registerCommands() error {
 	return nil
 }
 
-// registerInteractionsHandlers registra os handlers de interações para comandos, componentes e modais.
+// registerInteractionsHandlers registra os handlers de interações para comandos, menus, botões, etc.
 func (b *Bot) registerInteractionsHandlers() error {
 	b.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
@@ -94,6 +94,14 @@ func (b *Bot) registerInteractionsHandlers() error {
 					component.Handler(s, i)
 					return
 				}
+			}
+
+		case discordgo.InteractionApplicationCommandAutocomplete:
+			// Lidar com autocomplete
+			cmdName := i.ApplicationCommandData().Name
+			if cmd, exists := commands.CommandRegistry[cmdName]; exists && cmd.AutocompleteHandler != nil {
+				cmd.AutocompleteHandler(s, i)
+				return
 			}
 		}
 	})
