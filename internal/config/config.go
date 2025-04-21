@@ -4,12 +4,13 @@ import "fmt"
 
 const (
 	// Bot
-	Token = ""
+	Token   = "MTM1NzUwNDc4ODU4OTQ0NTI4MQ.GvwNsg.l9YsHuXV1kdHvmeHXJ9lCKS4c0bdppO8BBLLlY"
+	GuildID = "1357505318115999935"
 
 	// Database
 	User     = "root"
-	Password = "password"
-	Host     = "localhost"
+	Password = ""
+	Host     = "192.168.0.2"
 	Port     = "3306"
 	Database = "discord_bot_go"
 )

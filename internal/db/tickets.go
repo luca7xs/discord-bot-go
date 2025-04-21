@@ -36,7 +36,7 @@ func CreateTicket(userID, userName, channelID, ticketType, reason string) error 
 }
 
 // findTicket é uma função auxiliar genérica para buscar tickets
-func findTicket(whereClause string, args ...interface{}) (*Ticket, error) {
+func findTicket(whereClause string, args ...any) (*Ticket, error) {
 	var ticket Ticket
 	err := DB.Where(whereClause, args...).First(&ticket).Error
 	if err == gorm.ErrRecordNotFound {
@@ -116,7 +116,7 @@ func CloseTicket(channelID string, messages []*discordgo.Message) error {
 
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// Atualizar o ticket
-		result := tx.Model(&Ticket{}).Where("channel_id = ? AND status = ?", channelID, TicketStatusOpen).Updates(map[string]interface{}{
+		result := tx.Model(&Ticket{}).Where("channel_id = ? AND status = ?", channelID, TicketStatusOpen).Updates(map[string]any{
 			"status":    TicketStatusClosed,
 			"closed_at": time.Now(),
 		})

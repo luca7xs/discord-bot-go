@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"discord-bot-go/internal/db"
 	"discord-bot-go/internal/utils"
 	"fmt"
@@ -76,7 +77,7 @@ func init() {
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Title:       "Ticket Fechado",
-						Description: fmt.Sprintf("O ticket de **%s** será fechado %s! Esse canal será excluído em 20 segundos.", ticket.Type, saveLogsMsg),
+						Description: fmt.Sprintf("O ticket de **%s** será fechado %s por %s! Esse canal será excluído em 20 segundos.", ticket.Type, saveLogsMsg, i.Member.User.Mention()),
 						Color:       0x00FF00, // Verde para indicar que o processo está em andamento
 					},
 				},
@@ -97,8 +98,14 @@ func init() {
 				return
 			}
 
-			// Gerenciar cancelamento e fechamento
-			handleTicketClosure(s, channelID, msg, saveLogs == "sim", ticket)
+			// Criar contexto com timeout de 20 segundos
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+
+			// Registrar a função de cancelamento
+			RegisterCancelFunc(channelID, cancel)
+
+			// Gerenciar fechamento
+			handleTicketClosure(s, ctx, channelID, msg, saveLogs == "sim")
 		},
 	})
 }
@@ -113,56 +120,36 @@ func validateInput(component discordgo.MessageComponent, validOptions ...string)
 }
 
 // Função para gerenciar o fechamento do ticket
-func handleTicketClosure(s *discordgo.Session, channelID string, msg *discordgo.Message, saveLogs bool, ticket *db.Ticket) {
-	cancelChan := make(chan bool, 1)
+func handleTicketClosure(s *discordgo.Session, ctx context.Context, channelID string, msg *discordgo.Message, saveLogs bool) {
+	// Aguardar o contexto (timeout ou cancelamento)
+	<-ctx.Done()
+	// Limpar a função de cancelamento
+	ClearCancelFunc(channelID)
 
-	// Registrar handler temporário para o botão de cancelamento
-	cancelHandler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if i.Type != discordgo.InteractionMessageComponent {
-			return // ignora interações que não são de botão
-		}
+	// Se o contexto foi cancelado, sair sem fechar o ticket
+	if ctx.Err() == context.Canceled {
+		return
+	}
 
-		if i.MessageComponentData().CustomID == "cancel_close_"+channelID {
-			cancelChan <- true
-			utils.RespondEphemeralEmbed(s, i, utils.ResponseOptions{
-				Title:       "Fechamento Cancelado",
-				Description: "O canal será mantido aberto.",
-				Color:       0xFFFF00, // Amarelo para cancelamento
-			})
-			err := s.ChannelMessageDelete(msg.ChannelID, msg.ID)
-			if err != nil {
-				s.ChannelMessageSend(channelID, "Erro ao deletar mensagem de fechamento. O processo continuará mesmo assim.")
-			}
+	// Fechar o ticket no banco de dados
+	var messages []*discordgo.Message
+	if saveLogs {
+		var err error
+		messages, err = utils.FetchAllMessages(s, channelID)
+		if err != nil {
+			s.ChannelMessageSend(channelID, "Erro ao buscar mensagens do ticket. O canal será mantido ativo. Por favor, tente novamente ou contate um administrador.")
+			return
 		}
 	}
 
-	s.AddHandlerOnce(cancelHandler)
+	err := db.CloseTicket(channelID, messages)
+	if err != nil {
+		s.ChannelMessageSend(channelID, "Erro ao registrar o fechamento do ticket no banco de dados. O canal será mantido ativo. Por favor, tente novamente ou contate um administrador.")
+		return
+	}
 
-	// Aguardar 20 segundos ou cancelamento
-	select {
-	case <-cancelChan:
-		return // Sai da função se cancelado, sem fechar o ticket no banco
-	case <-time.After(20 * time.Second):
-		// Fechar o ticket no banco de dados apenas se não for cancelado
-		var messages []*discordgo.Message
-		if saveLogs {
-			var err error
-			messages, err = utils.FetchAllMessages(s, channelID)
-			if err != nil {
-				s.ChannelMessageSend(channelID, "Erro ao buscar mensagens do ticket. O canal será mantido ativo. Por favor, tente novamente ou contate um administrador.")
-				return
-			}
-		}
-
-		err := db.CloseTicket(channelID, messages)
-		if err != nil {
-			s.ChannelMessageSend(channelID, "Erro ao registrar o fechamento do ticket no banco de dados. O canal será mantido ativo. Por favor, tente novamente ou contate um administrador.")
-			return
-		}
-
-		_, err = s.ChannelDelete(channelID)
-		if err != nil {
-			s.ChannelMessageSend(channelID, "Ticket fechado no banco, mas erro ao deletar o canal. Por favor, delete manualmente!")
-		}
+	_, err = s.ChannelDelete(channelID)
+	if err != nil {
+		s.ChannelMessageSend(channelID, "Ticket fechado no banco, mas erro ao deletar o canal. Por favor, delete manualmente!")
 	}
 }

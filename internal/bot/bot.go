@@ -34,13 +34,19 @@ func (b *Bot) Start() error {
 
 	fmt.Printf("Conectado ao Discord como %s#%s\n", b.Session.State.User.Username, b.Session.State.User.Discriminator)
 
-	// Registra todos os comandos automaticamente
+	// Limpa todos os comandos registrados (globais e do servidor)
+	// err = b.clearCommands()
+	// if err != nil {
+	// 	return fmt.Errorf("erro ao limpar comandos: %v", err)
+	// }
+
+	// Registra todos os comandos no servidor especificado
 	err = b.registerCommands()
 	if err != nil {
 		return err
 	}
 
-	// Registra todos os handlers de interações automaticamente
+	// Registra os handlers de interações
 	err = b.registerInteractionsHandlers()
 	if err != nil {
 		return err
@@ -54,14 +60,47 @@ func (b *Bot) Start() error {
 	return b.Session.Close()
 }
 
-// registerCommands registra todos os comandos no Discord.
+// clearCommands remove todos os comandos registrados (globais e do servidor)
+// func (b *Bot) clearCommands() error {
+// 	// Remove comandos globais
+// 	globalCommands, err := b.Session.ApplicationCommands(b.Session.State.User.ID, "")
+// 	if err != nil {
+// 		return fmt.Errorf("erro ao buscar comandos globais: %v", err)
+// 	}
+// 	for _, cmd := range globalCommands {
+// 		err = b.Session.ApplicationCommandDelete(b.Session.State.User.ID, "", cmd.ID)
+// 		if err != nil {
+// 			return fmt.Errorf("erro ao deletar comando global %s: %v", cmd.Name, err)
+// 		}
+// 		fmt.Printf("Comando global /%s deletado com sucesso!\n", cmd.Name)
+// 	}
+
+// 	// Remove comandos do servidor especificado
+// 	guildCommands, err := b.Session.ApplicationCommands(b.Session.State.User.ID, config.GuildID)
+// 	if err != nil {
+// 		return fmt.Errorf("erro ao buscar comandos do servidor %s: %v", config.GuildID, err)
+// 	}
+// 	for _, cmd := range guildCommands {
+// 		err = b.Session.ApplicationCommandDelete(b.Session.State.User.ID, config.GuildID, cmd.ID)
+// 		if err != nil {
+// 			return fmt.Errorf("erro ao deletar comando do servidor %s: %v", cmd.Name, err)
+// 		}
+// 		fmt.Printf("Comando do servidor /%s deletado com sucesso!\n", cmd.Name)
+// 	}
+
+// 	fmt.Println("Todos os comandos foram limpos com sucesso!")
+// 	return nil
+// }
+
+// registerCommands registra todos os comandos no servidor especificado
 func (b *Bot) registerCommands() error {
 	for _, cmd := range commands.CommandRegistry {
-		_, err := b.Session.ApplicationCommandCreate(b.Session.State.User.ID, "", cmd.Definition)
+		// Registra o comando no servidor especificado (config.GuildID)
+		_, err := b.Session.ApplicationCommandCreate(b.Session.State.User.ID, config.GuildID, cmd.Definition)
 		if err != nil {
 			return fmt.Errorf("erro ao registrar comando %s: %v", cmd.Definition.Name, err)
 		}
-		fmt.Printf("Comando /%s registrado com sucesso!\n", cmd.Definition.Name)
+		fmt.Printf("Comando /%s registrado com sucesso no servidor %s!\n", cmd.Definition.Name, config.GuildID)
 	}
 	return nil
 }
@@ -69,6 +108,13 @@ func (b *Bot) registerCommands() error {
 // registerInteractionsHandlers registra os handlers de interações para comandos, menus, botões, etc.
 func (b *Bot) registerInteractionsHandlers() error {
 	b.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// Verifica se a interação ocorreu no servidor correto
+		if i.GuildID != config.GuildID {
+			// Ignora interações de outros servidores
+			fmt.Printf("Interação ignorada: recebida do servidor %s, esperado %s\n", i.GuildID, config.GuildID)
+			return
+		}
+
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
 			// Lidar com comandos
@@ -95,7 +141,6 @@ func (b *Bot) registerInteractionsHandlers() error {
 					return
 				}
 			}
-
 		case discordgo.InteractionApplicationCommandAutocomplete:
 			// Lidar com autocomplete
 			cmdName := i.ApplicationCommandData().Name

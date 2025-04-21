@@ -100,6 +100,15 @@ func handleTicketLogsCommand(s *discordgo.Session, i *discordgo.InteractionCreat
 		return
 	}
 
+	if len(messages) == 0 {
+		utils.RespondEphemeralEmbed(s, i, utils.ResponseOptions{
+			Title:       "Logs não encontrados",
+			Description: "Este ticket não possui logs de mensagens.",
+			Color:       0xFFFF00,
+		})
+		return
+	}
+
 	// Parse de datas opcionais
 	var startDate, endDate time.Time
 	layout := "02/01/2006"
@@ -123,27 +132,45 @@ func handleTicketLogsCommand(s *discordgo.Session, i *discordgo.InteractionCreat
 		}
 	}
 
-	pdfBytes, err := utils.GenerateTicketPDF(ticket, filteredMessages)
-	if err != nil {
+	if len(filteredMessages) == 0 && (!startDate.IsZero() || !endDate.IsZero()) {
 		utils.RespondEphemeralEmbed(s, i, utils.ResponseOptions{
-			Title:       "Erro ao gerar PDF",
-			Description: err.Error(),
-			Color:       0xFF0000,
+			Title:       "Nenhuma mensagem no período",
+			Description: "Não foram encontradas mensagens dentro do período especificado.",
+			Color:       0xFFFF00,
 		})
 		return
 	}
 
+	// Mensagem de feedback inicial (adiada)
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Files: []*discordgo.File{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: "Gerando o PDF com os logs do ticket...",
+		},
+	})
+
+	pdfBytes, err := utils.GenerateTicketPDF(ticket, filteredMessages, s)
+	if err != nil {
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{
 				{
-					Name:        fmt.Sprintf("ticket_%d_logs.pdf", ticket.ID),
-					ContentType: "application/pdf",
-					Reader:      strings.NewReader(string(pdfBytes)),
+					Title:       "Erro ao gerar PDF",
+					Description: err.Error(),
+					Color:       0xFF0000,
 				},
 			},
-			Flags: discordgo.MessageFlagsEphemeral,
+		})
+		return
+	}
+
+	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Files: []*discordgo.File{
+			{
+				Name:        fmt.Sprintf("ticket_%d_logs.pdf", ticket.ID),
+				ContentType: "application/pdf",
+				Reader:      strings.NewReader(string(pdfBytes)),
+			},
 		},
 	})
 }

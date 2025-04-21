@@ -38,6 +38,7 @@ func init() {
 				utils.RespondEphemeralEmbed(s, i, utils.ResponseOptions{
 					Title:       "Sem Permissão",
 					Description: "Você não tem permissão para fechar este ticket!",
+					Color:       0xFF0000, // Vermelho para erro
 				})
 				return
 			}
